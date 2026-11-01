@@ -88,6 +88,13 @@ pub fn kill_process_tree(pid: u32) {
             .creation_flags(crate::utils::CREATE_NO_WINDOW)
             .output();
     }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .output();
+    }
 }
 
 pub fn cancel_and_kill_session_for_file(file_path: &str) {

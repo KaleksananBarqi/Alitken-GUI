@@ -69,11 +69,19 @@ struct VendorCandidate {
 /// to the optimal hardware-accelerated FFmpeg encoder, falling back to CPU software.
 pub fn get_gpu_encoder(codec_choice: &str, ffmpeg_path: &str) -> GpuCapability {
     // 1. Determine CPU Default Fallbacks
-    let (encoder, enc_args, ext) = match codec_choice {
+    let (mut encoder, mut enc_args, ext) = match codec_choice {
         "2" => ("libx265".to_string(), "-preset fast".to_string(), "mp4".to_string()),
         "3" => ("libaom-av1".to_string(), "-cpu-used 6".to_string(), "mkv".to_string()),
         _ => ("libx264".to_string(), "-preset fast".to_string(), "mp4".to_string()),
     };
+
+    // If default CPU encoder is unavailable (e.g. stock Fedora ffmpeg-free lacking libx264), try libopenh264
+    if encoder == "libx264" && !test_encoder_support_cached(ffmpeg_path, &encoder) {
+        if test_encoder_support_cached(ffmpeg_path, "libopenh264") {
+            encoder = "libopenh264".to_string();
+            enc_args = String::new();
+        }
+    }
 
     // 2. Query Windows Video Controllers via System Information / WMIC / PowerShell fallbacks
     let gpu_string = query_system_gpu_name();
@@ -158,7 +166,8 @@ pub fn get_gpu_encoder(codec_choice: &str, ffmpeg_path: &str) -> GpuCapability {
     }
 }
 
-/// Helper function to query GPU vendor strings on Windows (cached in RAM via OnceLock)
+/// Helper function to query GPU vendor strings (cached in RAM via OnceLock)
+#[cfg(target_os = "windows")]
 fn query_system_gpu_name() -> String {
     GPU_NAME_CACHE
         .get_or_init(|| {
@@ -187,6 +196,46 @@ fn query_system_gpu_name() -> String {
             }
 
             "Generic GPU".to_string()
+        })
+        .clone()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn query_system_gpu_name() -> String {
+    GPU_NAME_CACHE
+        .get_or_init(|| {
+            // 1. Probe via lspci
+            if let Ok(out) = std::process::Command::new("lspci").output() {
+                let text = String::from_utf8_lossy(&out.stdout).to_string();
+                let mut matches = Vec::new();
+                for line in text.lines() {
+                    let l_lower = line.to_lowercase();
+                    if l_lower.contains("vga") || l_lower.contains("3d") || l_lower.contains("display") {
+                        matches.push(line.trim().to_string());
+                    }
+                }
+                if !matches.is_empty() {
+                    return matches.join(" | ");
+                }
+            }
+
+            // 2. Probe via sysfs drm
+            if let Ok(entries) = std::fs::read_dir("/sys/class/drm") {
+                for entry in entries.flatten() {
+                    let uevent_path = entry.path().join("device/uevent");
+                    if let Ok(content) = std::fs::read_to_string(&uevent_path) {
+                        if content.contains("DRIVER=nvidia") {
+                            return "NVIDIA Graphics".to_string();
+                        } else if content.contains("DRIVER=amdgpu") || content.contains("DRIVER=radeon") {
+                            return "AMD Radeon Graphics".to_string();
+                        } else if content.contains("DRIVER=i915") || content.contains("DRIVER=xe") {
+                            return "Intel Graphics".to_string();
+                        }
+                    }
+                }
+            }
+
+            "Linux Generic GPU".to_string()
         })
         .clone()
 }

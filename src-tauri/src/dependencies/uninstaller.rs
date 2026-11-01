@@ -5,8 +5,12 @@ const MANAGED_BIN_FILES: &[&str] = &[
     "ffmpeg.exe",
     "ffprobe.exe",
     "magick.exe",
+    "ffmpeg",
+    "ffprobe",
+    "magick",
     "ffmpeg_download.zip",
     "magick_download.7z",
+    "ffmpeg_download.tar.xz",
 ];
 
 /// Uninstalls Alitken-managed binaries (ffmpeg, ffprobe, magick) and removes %LOCALAPPDATA%/curlyzed/alitken

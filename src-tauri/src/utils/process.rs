@@ -2,6 +2,7 @@
 use std::os::windows::process::CommandExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+#[cfg(target_os = "windows")]
 pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub static CANCEL_REQUESTED: AtomicBool = AtomicBool::new(false);
@@ -16,6 +17,7 @@ pub fn check_cancel_flag() -> bool {
 
 /// Creates a std::process::Command with CREATE_NO_WINDOW flag on Windows
 pub fn create_hidden_cmd(program: &str) -> std::process::Command {
+    #[allow(unused_mut)]
     let mut cmd = std::process::Command::new(program);
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);
@@ -24,6 +26,7 @@ pub fn create_hidden_cmd(program: &str) -> std::process::Command {
 
 /// Creates a tokio::process::Command with CREATE_NO_WINDOW flag on Windows
 pub fn create_tokio_hidden_cmd(program: &str) -> tokio::process::Command {
+    #[allow(unused_mut)]
     let mut cmd = tokio::process::Command::new(program);
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);

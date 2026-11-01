@@ -5,10 +5,8 @@
 //! This module locks the startup window geometry and suppresses edge resize cursors
 //! across all borders (including the top edge handled by Tauri's child resize window).
 
-#[cfg(target_os = "windows")]
 use std::sync::atomic::{AtomicBool, Ordering};
 
-#[cfg(target_os = "windows")]
 pub static IS_STARTUP_RESIZE_LOCKED: AtomicBool = AtomicBool::new(true);
 
 #[cfg(target_os = "windows")]
@@ -123,7 +121,9 @@ pub fn set_startup_resize_locked(window: &tauri::Window, locked: bool) {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn set_startup_resize_locked(_window: &tauri::Window, _locked: bool) {}
+pub fn set_startup_resize_locked(_window: &tauri::Window, locked: bool) {
+    IS_STARTUP_RESIZE_LOCKED.store(locked, Ordering::Relaxed);
+}
 
 #[cfg(target_os = "windows")]
 pub fn install_window_subclass(window: &tauri::Window) {

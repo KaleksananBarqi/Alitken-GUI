@@ -183,29 +183,37 @@ pub fn check_dependencies() -> DependencyStatus {
     status
 }
 
+fn resolve_binary(appdata_bin: &Path, base_name: &str) -> String {
+    #[cfg(target_os = "windows")]
+    let exe_name = format!("{}.exe", base_name);
+    #[cfg(not(target_os = "windows"))]
+    let exe_name = base_name.to_string();
+
+    let local = appdata_bin.join(&exe_name);
+    if local.is_file() {
+        return local.to_string_lossy().to_string();
+    }
+
+    // Hybrid fallback: probe system PATH
+    if let Some(path_var) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&path_var) {
+            let candidate = dir.join(&exe_name);
+            if candidate.is_file() {
+                return candidate.to_string_lossy().to_string();
+            }
+        }
+    }
+
+    String::new()
+}
+
 fn compute_dependencies() -> DependencyStatus {
     let appdata_bin = get_appdata_bin_dir();
     let appdata_path = appdata_bin.to_string_lossy().to_string();
 
-    let ffmpeg_exe = appdata_bin.join("ffmpeg.exe");
-    let ffprobe_exe = appdata_bin.join("ffprobe.exe");
-    let magick_exe = appdata_bin.join("magick.exe");
-
-    let ffmpeg_path = if ffmpeg_exe.exists() {
-        ffmpeg_exe.to_string_lossy().to_string()
-    } else {
-        String::new()
-    };
-    let ffprobe_path = if ffprobe_exe.exists() {
-        ffprobe_exe.to_string_lossy().to_string()
-    } else {
-        String::new()
-    };
-    let magick_path = if magick_exe.exists() {
-        magick_exe.to_string_lossy().to_string()
-    } else {
-        String::new()
-    };
+    let ffmpeg_path = resolve_binary(&appdata_bin, "ffmpeg");
+    let ffprobe_path = resolve_binary(&appdata_bin, "ffprobe");
+    let magick_path = resolve_binary(&appdata_bin, "magick");
 
     let (ffmpeg_version, ffmpeg_maj, _) = probe_binary_version(&ffmpeg_path);
     let (ffprobe_version, _, _) = probe_binary_version(&ffprobe_path);
@@ -223,11 +231,16 @@ fn compute_dependencies() -> DependencyStatus {
     let mut ffmpeg_latest_version = "7.1".to_string();
     let mut magick_latest_version = "7.1.2-31".to_string();
 
-    let has_update = ffmpeg_valid
+    let ffmpeg_is_managed = ffmpeg_path.starts_with(&appdata_path);
+    let magick_is_managed = magick_path.starts_with(&appdata_path);
+
+    let has_update = ffmpeg_is_managed
+        && ffmpeg_valid
         && ffmpeg_maj > 0
         && is_version_outdated(&ffmpeg_version, &ffmpeg_latest_version);
 
-    let magick_has_update = magick_valid
+    let magick_has_update = magick_is_managed
+        && magick_valid
         && magick_maj > 0
         && is_version_outdated(&magick_version, &magick_latest_version);
 
