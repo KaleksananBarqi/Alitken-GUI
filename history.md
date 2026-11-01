@@ -70,6 +70,18 @@ All AI agents working on this repository MUST strictly follow these rules:
 
 *Record high-level summaries of changes here whenever code is modified:*
 
+### [2026-11-01] v0.9.2 - Cross-Platform Linux Engine & Hybrid Dependency Architecture
+- **`src-tauri/src/dependencies/status.rs`**: Implemented `resolve_binary()` hybrid resolution to probe `%LOCALAPPDATA%\curlyzed\bin` (Windows), `~/.local/share/curlyzed/bin` (Linux), and system `PATH` (`/usr/bin/ffmpeg`, `/usr/bin/magick`); added managed-status checks so system packages do not trigger false update badges.
+- **`src-tauri/src/dependencies/uninstaller.rs`**: Added non-extension binaries (`ffmpeg`, `ffprobe`, `magick`) and `.tar.xz` to `MANAGED_BIN_FILES` for clean Linux pruning.
+- **`src-tauri/src/gpu.rs`**: Added Linux GPU vendor probing via `lspci` and `/sys/class/drm` sysfs uevents with NVENC, QSV, and VA-API mapping; added fallback to `libopenh264` when `libx264` is unavailable (such as in vanilla Fedora `ffmpeg-free`).
+- **`src-tauri/src/win_integration.rs`**: Added cross-platform `set_sendto_shortcut()` and `is_sendto_active()` generating XDG Desktop entries (`.local/share/applications/`), KDE Dolphin Service Menus (`.local/share/kio/servicemenus/`), and GNOME Nautilus Scripts (`.local/share/nautilus/scripts/`).
+- **`src-tauri/src/window.rs`**: Lifted `IS_STARTUP_RESIZE_LOCKED` out of Windows-only gates and added cross-platform `set_startup_resize_locked()` synchronization.
+- **`src-tauri/src/ffmpeg/video/preview.rs`**: Added Unix process termination via `kill -9` to prevent zombie subprocesses on Linux.
+- **`src-tauri/src/utils/process.rs` & `cache.rs`**: Gated Windows-specific process creation flags (`CREATE_NO_WINDOW`) and `OpenOptionsExt` behind `#[cfg(target_os = "windows")]`, eliminating compiler warnings.
+- **`src-tauri/tauri.conf.json` & `icons/`**: Extracted high-resolution PNG icon set (32x32, 128x128, 128x128@2x, 512x512, icon.png) from `icon.ico` and configured Linux bundle metadata for Fedora RPM and Debian packages.
+- **`build.sh`**: Created executable developer tool supporting `dev`, `verify`, `build`, `rpm`, and `appimage` targets.
+- **`docs/adr/0001-linux-cross-platform-architecture.md` & `GLOSSARY.md`**: Recorded the cross-platform hybrid dependency, GPU, and packaging architectural decisions and domain vocabulary.
+
 ### [2026-10-24] v0.9.2 - Automated Microsoft Store MSIX Bundle (.msixbundle) Packaging
 - **`build.ps1`**: Integrated automated multi-architecture bundle packaging (`MakeAppx.exe bundle`) in `Invoke-ReleasePipeline` under MS Store targets; combines `_MSStore_64.msix` and `_MSStore_ARM64.msix` into a single `Alitken_v<ver>_MSStore.msixbundle` ready for 1-file upload to Microsoft Partner Center; updated `Invoke-CleanCaches` to purge `msix_bundle_staging`; updated menu descriptions for options `[6]` and `[8]` to reflect unified `.msixbundle` generation.
 
